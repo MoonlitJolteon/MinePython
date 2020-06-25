@@ -3,6 +3,7 @@ import bitarray
 
 class DataType:
     pattern = ""
+    length = 0
     def __init__(self,value):
         self.value = value
     def setValue(self,value):
@@ -10,35 +11,48 @@ class DataType:
     def pack(self):
         return struct.pack(f">{self.pattern}", self.value)
     def unpack(self, value):
-        self.value = struct.unpack(f">{self.pattern}", value)
+        data = b""
+        for i in range(self.length):
+            data += value.pop(0)
+        self.value = struct.unpack(f">{self.pattern}", data)
         return self.value
 
 class Boolean(DataType):
     def pack(self):
         return b"\x01" if self.value else b"\x00"
     def unpack(self, value):
-        self.value = b"\x01" == value
+        self.value = b"\x01" == value.pop(0)
         return self.value
 class Byte(DataType):
     pattern = "b"
+    length = 1
 class UnsingedByte(DataType):
     pattern = "B"
+    length = 1
 class Short(DataType):
     pattern = "h"
+    length = 2
 class UnsingedShort(DataType):
     pattern = "H"
+    length = 2
 class Int(DataType):
     pattern = "i"
+    length = 4
 class UnsingedInt(DataType):
     pattern = "I"
+    length = 4
 class Long(DataType):
-    pattern = "l"
+    pattern = "q"
+    length = 8
 class UnsingedLong(DataType):
-    pattern = "L"
+    pattern = "Q"
+    length = 8
 class Float(DataType):
     pattern = "f"
+    length = 4
 class Double(DataType):
     pattern = "d"
+    length = 8
 class VarInt(DataType):
     def pack(self):
         data = self.value
