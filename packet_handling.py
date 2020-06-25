@@ -67,11 +67,15 @@ class VarLong(DataType):
                 break
         if len(oridinal) > 7:
             raise ValueError(f"{self.value} is out of the range of a VarLong")
-        return ordinal
-        
+        return ordinal 
 class String(DataType):
     def pack(self):
-        pass
+        byte = self.value.encode("utf-8")
+        return VarInt(len(byte)).pack + byte
+class Chat(String):
+    pass
+class Identifier(String):
+    pass
 
 def unpack_varint(sock):
     """ Unpack the varint """
