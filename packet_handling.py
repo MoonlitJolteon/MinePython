@@ -2,7 +2,76 @@ import socket
 import struct
 import json
 import time
+from bitarray import bitarray
 
+class DataType:
+    pattern = ""
+    def __init__(self,value):
+        self.value = value
+    def setValue(self,value):
+        self.value = value
+    def pack(self):
+        return struct.pack(f">{self.pattern}", self.value)
+
+class Boolean(DataType):
+    def pack(self):
+        return b"\x01" if self.value else b"\x00"
+class Byte(DataType):
+    pattern = "b"
+class UnsingedByte(DataType):
+    pattern = "B"
+class Short(DataType):
+    pattern = "h"
+class UnsingedShort(DataType):
+    pattern = "H"
+class Int(DataType):
+    pattern = "i"
+class UnsingedInt(DataType):
+    pattern = "I"
+class Long(DataType):
+    pattern = "l"
+class UnsingedLong(DataType):
+    pattern = "L"
+class Float(DataType):
+    pattern = "f"
+class Double(DataType):
+    pattern = "d"
+class VarInt(DataType):
+    def pack(self):
+        data = self.value
+        """ Pack the var int """
+        ordinal = b''
+
+        while True:
+            byte = data & 0x7F
+            data >>= 7
+            ordinal += struct.pack('B', byte | (0x80 if data > 0 else 0))
+
+            if data == 0:
+                break
+        if len(oridinal) > 5:
+            raise ValueError(f"{self.value} is out of the range of a VarInt")
+        return ordinal        
+class VarLong(DataType):
+    def pack(self):
+        data = self.value
+        """ Pack the var int """
+        ordinal = b''
+
+        while True:
+            byte = data & 0x7F
+            data >>= 7
+            ordinal += struct.pack('B', byte | (0x80 if data > 0 else 0))
+
+            if data == 0:
+                break
+        if len(oridinal) > 7:
+            raise ValueError(f"{self.value} is out of the range of a VarLong")
+        return ordinal
+        
+class String(DataType):
+    def pack(self):
+        pass
 
 def unpack_varint(sock):
     """ Unpack the varint """
@@ -102,3 +171,8 @@ def read_fully(connection, extra_varint=False):
     #     response['ping'] = int(time.time() * 1000) - struct.unpack('L', unix)[0]
     #
     #     return response
+if __name__ == "__main__":
+    a = 2147483647
+    i = VarInt(a)
+    print(i.pack())
+    print(pack_varint(a))
