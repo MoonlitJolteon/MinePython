@@ -12,10 +12,16 @@ class DataType:
         self.value = value
     def pack(self):
         return struct.pack(f">{self.pattern}", self.value)
+    def unpack(self, value):
+        self.value = struct.unpack(f">{self.pattern}", value)
+        return self.value
 
 class Boolean(DataType):
     def pack(self):
         return b"\x01" if self.value else b"\x00"
+    def unpack(self, value):
+        self.value = b"\x01" == value
+        return self.value
 class Byte(DataType):
     pattern = "b"
 class UnsingedByte(DataType):
@@ -51,7 +57,25 @@ class VarInt(DataType):
                 break
         if len(oridinal) > 5:
             raise ValueError(f"{self.value} is out of the range of a VarInt")
-        return ordinal        
+        return ordinal       
+    def unpack(self, value):
+        """ Unpack the varint """
+        data = 0
+        for i in range(5):
+            ordinal = value.pop(0)
+
+            if len(ordinal) == 0:
+                break
+
+            byte = ord(ordinal)
+            data |= (byte & 0x7F) << 7 * i
+
+            if not byte & 0x80:
+                break
+
+        self.value = data
+        return data
+
 class VarLong(DataType):
     def pack(self):
         data = self.value
@@ -68,6 +92,22 @@ class VarLong(DataType):
         if len(oridinal) > 7:
             raise ValueError(f"{self.value} is out of the range of a VarLong")
         return ordinal 
+    def unpack(self, value):
+        """ Unpack the varint """
+        data = 0
+        for i in range(5):
+            ordinal = value.pop(0)
+
+            if len(ordinal) == 0:
+                break
+
+            byte = ord(ordinal)
+            data |= (byte & 0x7F) << 7 * i
+
+            if not byte & 0x80:
+                break
+        self.value = data
+        return data
 class String(DataType):
     def pack(self):
         byte = self.value.encode("utf-8")
