@@ -60,6 +60,7 @@ def send_data(connection, *args):
 
     connection.send(pack_varint(len(data)) + data)
 
+
 def read_fully(connection, extra_varint=False):
     """ Read the connection and return the bytes """
     packet_length = unpack_varint(connection)

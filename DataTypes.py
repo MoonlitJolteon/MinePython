@@ -40,7 +40,7 @@ class Short(DataType):
     pattern = "h"
 
 
-class UnsingedShort(DataType):
+class UnsignedShort(DataType):
     pattern = "H"
 
 
@@ -48,7 +48,7 @@ class Int(DataType):
     pattern = "i"
 
 
-class UnsingedInt(DataType):
+class UnsignedInt(DataType):
     pattern = "I"
 
 
@@ -56,7 +56,7 @@ class Long(DataType):
     pattern = "l"
 
 
-class UnsingedLong(DataType):
+class UnsignedLong(DataType):
     pattern = "L"
 
 
@@ -117,7 +117,7 @@ class VarLong(DataType):
 
             if data == 0:
                 break
-        if len(oridinal) > 7:
+        if len(ordinal) > 7:
             raise ValueError(f"{self.value} is out of the range of a VarLong")
         return ordinal
 
@@ -142,8 +142,13 @@ class VarLong(DataType):
 class String(DataType):
     def pack(self):
         byte = self.value.encode("utf-8")
-        return VarInt(len(byte)).pack + byte
+        return VarInt(len(byte)).pack() + byte
 
+# TODO (maybe)
+# class JSON(DataType):
+#     def pack(self):
+#         byte = self.valye.encode("utf-8")
+#         return VarInt(len(byte)).pack() + byte
 
 class Chat(String):
     pass
