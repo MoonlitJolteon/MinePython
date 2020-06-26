@@ -164,14 +164,9 @@ class threadedClient(threading.Thread):
                 }
             }
 
-            demoJSON = json.dumps(demoJSON)
-            # print(f'[REQUEST PACKET]')
-
-            msg = b'\x00' + DataTypes.String(demoJSON).pack()
+            msg = b'\x00' + DataTypes.Json(demoJSON).pack()
             msg = DataTypes.VarInt(len(msg)).pack() + msg
             self.conn.send(msg)
-
-            # print(f'[RESPONSE PACKET] {msg}')
 
         elif self.packet_type == 'Status Ping':
             # print(f'[PING] {data}')
