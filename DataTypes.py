@@ -2,11 +2,12 @@ import struct
 import bitarray
 import json
 
+
 class DataType:
     pattern = ""
     length = 0
 
-    def __init__(self, value = None):
+    def __init__(self, value=None):
         self.value = value
 
     def setValue(self, value):
@@ -36,41 +37,51 @@ class Byte(DataType):
     pattern = "b"
     length = 1
 
+
 class UnsingedByte(DataType):
     pattern = "B"
     length = 1
+
 
 class Short(DataType):
     pattern = "h"
     length = 2
 
+
 class UnsingedShort(DataType):
     pattern = "H"
     length = 2
+
 
 class Int(DataType):
     pattern = "i"
     length = 4
 
+
 class UnsingedInt(DataType):
     pattern = "I"
     length = 4
+
 
 class Long(DataType):
     pattern = "q"
     length = 8
 
+
 class UnsingedLong(DataType):
     pattern = "Q"
     length = 8
+
 
 class Float(DataType):
     pattern = "f"
     length = 4
 
+
 class Double(DataType):
     pattern = "d"
     length = 8
+
 
 class VarInt(DataType):
     def pack(self):
@@ -147,6 +158,7 @@ class String(DataType):
     def pack(self):
         byte = self.value.encode("utf-8")
         return VarInt(len(byte)).pack() + byte
+
     def unpack(self, value):
         leng = VarInt().unpack(value)
         nex = b""
@@ -160,9 +172,11 @@ class Json(DataType):
     def pack(self):
         string = json.dumps(self.value)
         return String(string).pack()
+
     def unpack(self):
-        string = String().unpack(value)
+        string = String().unpack(self.value)
         return json.loads(string)
+
 
 class Chat(String):
     pass

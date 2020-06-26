@@ -132,7 +132,7 @@ class threadedClient(threading.Thread):
 
     def _handle_handshake(self):
         self.state = self.data[-1]
-        print(f'[NEW STATE] {self.addr}: State {self._get_state_type()}, ID {self.state}')
+        print(f'[NEW STATE] {self.addr} State: {self._get_state_type()}, ID: {self.state}')
         if self.state not in [0, 1, 2, 3]:
             self.state = 0
             return -3
@@ -151,7 +151,13 @@ class threadedClient(threading.Thread):
                 },
                 "players": {
                     "max": 20,
-                    "online": 0
+                    "online": 1,
+                    "sample": [
+                        {
+                            "name": "MoonlitJolty",
+                            "id": "21a3feda-3387-440d-85b7-fc08038aa307"
+                        }
+                    ]
                 },
                 "description": {
                     "text": "Hello world!"
@@ -193,13 +199,11 @@ class threadedClient(threading.Thread):
             msg = DataTypes.VarInt(len(msg)).pack() + msg
 
             self.conn.send(msg)
-            # packet_handling.send_data(self.conn, b'\x02', uuid, username)  # Login Successful Packet
             self.state = 3
 
             # packet_handling.send_data(self.conn, b'\x26',
             #                1, 1, 0, (12345678).to_bytes(8, 'little'), 'default', 2, 0, 0)
 
-            self.conn.send(b"\x12\x23\x00\x00\x00\x0b\x01\x00\x00\x00\x00\x01\x14\x04\x66\x6c\x61\x74\x00")
             self.state = 3
 
         elif self.packet_type == 'Encryption Response':
