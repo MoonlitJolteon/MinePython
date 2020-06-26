@@ -38,7 +38,7 @@ class Byte(DataType):
     length = 1
 
 
-class UnsingedByte(DataType):
+class UnsignedByte(DataType):
     pattern = "B"
     length = 1
 
@@ -48,7 +48,7 @@ class Short(DataType):
     length = 2
 
 
-class UnsingedShort(DataType):
+class UnsignedShort(DataType):
     pattern = "H"
     length = 2
 
@@ -58,7 +58,7 @@ class Int(DataType):
     length = 4
 
 
-class UnsingedInt(DataType):
+class UnsignedInt(DataType):
     pattern = "I"
     length = 4
 
@@ -68,7 +68,7 @@ class Long(DataType):
     length = 8
 
 
-class UnsingedLong(DataType):
+class UnsignedLong(DataType):
     pattern = "Q"
     length = 8
 

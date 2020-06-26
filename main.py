@@ -2,7 +2,7 @@ import random
 import socket
 import time
 
-import DataTypes
+from DataTypes import *
 import packet_handling
 import json
 import threading
@@ -164,8 +164,8 @@ class threadedClient(threading.Thread):
                 }
             }
 
-            msg = b'\x00' + DataTypes.Json(demoJSON).pack()
-            msg = DataTypes.VarInt(len(msg)).pack() + msg
+            msg = b'\x00' + Json(demoJSON).pack()
+            msg = VarInt(len(msg)).pack() + msg
             self.conn.send(msg)
 
         elif self.packet_type == 'Status Ping':
@@ -182,24 +182,29 @@ class threadedClient(threading.Thread):
         ##############################
 
         if self.packet_type == 'Login Start':
-            print(f'[LOGIN START] {self.data.decode()}')
-
             username = self.data.decode()
+            print(f'[LOGIN START] {username}')
+
             Faker.seed(username)
             uuid = fake.uuid4()
 
-            print(f'[UUID GENERATED] {uuid}')
+            msg = b'\02' + String(uuid).pack() + String(username).pack()
 
-            msg = b'\02' + DataTypes.String(uuid).pack() + DataTypes.String(username).pack()
-            msg = DataTypes.VarInt(len(msg)).pack() + msg
+            msg = VarInt(len(msg)).pack() + msg
+
+            print(f'[LOGIN SUCCESSFUL] {username} - {uuid}')
 
             self.conn.send(msg)
             self.state = 3
 
-            # packet_handling.send_data(self.conn, b'\x26',
-            #                1, 1, 0, (12345678).to_bytes(8, 'little'), 'default', 2, 0, 0)
+            msg = b'\x26' + Int(1).pack() + UnsignedByte(1).pack() + Int(0).pack() + Long(12345678).pack()
+            msg += UnsignedByte(0).pack() + String("default").pack() + VarInt(16).pack()
+            msg += Boolean(False).pack() + Boolean(True).pack()
 
-            self.state = 3
+            msg = VarInt(len(msg)).pack() + msg
+            print(f'[JOIN PACKET] {addr} {msg}')
+
+            self.conn.send(msg)
 
         elif self.packet_type == 'Encryption Response':
             pass
@@ -217,7 +222,7 @@ class threadedClient(threading.Thread):
 
     def _handle_play(self):
         if not self.joined:
-            self.conn.send(b'\x15\x23\x00\x00\x0a\x4d\x00\x00\x00\x00\x00\x01\x14\x07\x64\x65' \
+            self.conn.send(b'\x15\x23\x00\x00\x0a\x4d\x00\x00\x00\x00\x00\x01\x14\x07\x64\x65'
                            b'\x66\x61\x75\x6c\x74\x00')
             self.joined = True
         else:

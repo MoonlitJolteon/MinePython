@@ -35,6 +35,6 @@ class Packet:
 
 
 class HandShake:
-    form = OrderedDict([("Protocol Version", VarInt), ("Server Address", String), ("Server Port", UnsingedShort),
+    form = OrderedDict([("Protocol Version", VarInt), ("Server Address", String), ("Server Port", UnsignedShort),
                         ("Next State", VarInt)])
     packetId = VarInt(0)
