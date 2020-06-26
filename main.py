@@ -1,6 +1,8 @@
 import random
 import socket
 import time
+
+import DataTypes
 import packet_handling
 import json
 import threading
@@ -144,42 +146,26 @@ class threadedClient(threading.Thread):
         if self.packet_type == "Status Request":
             demoJSON = {
                 "version": {
-                    "name": "1.12.2",
+                    "name": "MinePython 1.12.2",
                     "protocol": 340
                 },
                 "players": {
-                    "max": 100,
-                    "online": 5,
-                    "sample": []
+                    "max": 20,
+                    "online": 0
                 },
                 "description": {
-                    "text": "Hello world"
+                    "text": "Hello world!"
                 }
             }
 
             demoJSON = json.dumps(demoJSON)
-            print(f'[REQUEST PACKET]')
-            # msg = b'\x01\x00' + bytes([len(demoJSON)]) + demoJSON.encode()
-            # conn.send(bytes([len(msg)]) + msg)
+            # print(f'[REQUEST PACKET]')
 
-            # data = packet_handling.pack_data(demoJSON)
-            # conn.send(packet_handling.pack_varint(len(data))+data)
-
-            msg = b"\x8a\x01\x00\x87" \
-                  b"\x01\x7b\x22\x64\x65\x73\x63\x72\x69\x70\x74\x69\x6f\x6e\x22\x3a" \
-                  b"\x7b\x22\x74\x65\x78\x74\x22\x3a\x22\x41\x6c\x70\x68\x61\x20\x54" \
-                  b"\x6f\x77\x6e\x20\x43\x72\x65\x61\x74\x69\x76\x65\x20\x54\x65\x73" \
-                  b"\x74\x69\x6e\x67\x22\x7d\x2c\x22\x70\x6c\x61\x79\x65\x72\x73\x22" \
-                  b"\x3a\x7b\x22\x6d\x61\x78\x22\x3a\x32\x30\x2c\x22\x6f\x6e\x6c\x69" \
-                  b"\x6e\x65\x22\x3a\x30\x7d\x2c\x22\x76\x65\x72\x73\x69\x6f\x6e\x22" \
-                  b"\x3a\x7b\x22\x6e\x61\x6d\x65\x22\x3a\x22\x50\x61\x70\x65\x72\x20" \
-                  b"\x31\x2e\x31\x32\x2e\x32\x22\x2c\x22\x70\x72\x6f\x74\x6f\x63\x6f" \
-                  b"\x6c\x22\x3a\x33\x34\x30\x7d\x7d"
-
-            # The above packet works.. need to figure out why and fix the generated one TODO
-
+            msg = b'\x00' + DataTypes.String(demoJSON).pack()
+            msg = DataTypes.VarInt(len(msg)).pack() + msg
             self.conn.send(msg)
-            print(f'[RESPONSE PACKET]')
+
+            # print(f'[RESPONSE PACKET] {msg}')
 
         elif self.packet_type == 'Status Ping':
             # print(f'[PING] {data}')
@@ -203,7 +189,11 @@ class threadedClient(threading.Thread):
 
             print(f'[UUID GENERATED] {uuid}')
 
-            packet_handling.send_data(self.conn, b'\x02', uuid, username)  # Login Successful Packet
+            msg = b'\02' + DataTypes.String(uuid).pack() + DataTypes.String(username).pack()
+            msg = DataTypes.VarInt(len(msg)).pack() + msg
+
+            self.conn.send(msg)
+            # packet_handling.send_data(self.conn, b'\x02', uuid, username)  # Login Successful Packet
             self.state = 3
 
             # packet_handling.send_data(self.conn, b'\x26',
