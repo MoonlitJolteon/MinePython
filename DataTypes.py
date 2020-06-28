@@ -17,12 +17,10 @@ class DataType:
         return struct.pack(f">{self.pattern}", self.value)
 
     def unpack(self, value):
-        print(f'Value: {value}')
         data = b""
         for i in range(self.length):
-            data += bytes(value.pop(0))
-        print(f'Data: {data}')
-        self.value = struct.unpack(f">{self.pattern}", data)
+            data += bytes([value.pop(0)])
+        self.value,  = struct.unpack(f">{self.pattern}", data)
         return self.value
 
 
@@ -108,10 +106,10 @@ class VarInt(DataType):
         for i in range(5):
             ordinal = value.pop(0)
 
-            if len(ordinal) == 0:
-                break
+            # if len(ordinal) == 0:
+            #     break
 
-            byte = ord(ordinal)
+            byte = ordinal
             data |= (byte & 0x7F) << 7 * i
 
             if not byte & 0x80:
@@ -164,9 +162,9 @@ class String(DataType):
     def unpack(self, value):
         leng = VarInt().unpack(value)
         nex = b""
-        for i in leng:
+        for i in range(leng):
             nex += bytes([value.pop()])
-        self.value = json.loads(nex)
+        self.value = nex.decode("utf-8")[::-1]
         return self.value
 
 

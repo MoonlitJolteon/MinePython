@@ -148,8 +148,8 @@ class threadedClient(threading.Thread):
             self.conn.send(msg)
         else:
             if self.packet_type == "Keep Alive":
-                heartbeatID = Long().unpack(bytearray(self.data))
-                # heartbeatID = struct.unpack(f">q", self.data)[0] + 1
+                heartbeatID = (Long().unpack(bytearray(self.data)) + 1) % 1000000000000
+                # print(f"HeartbeatID: {heartbeatID}")
                 msg = b"\x21" + Long(heartbeatID).pack()
                 msg = VarInt(len(msg)).pack() + msg
                 # print(f'[HEARTBEAT] Sending Keep Alive to {self.addr}')
@@ -210,7 +210,7 @@ class threadedClient(threading.Thread):
         ##############################
 
         if self.packet_type == 'Login Start':
-            username = self.data.decode()
+            username = String().unpack(bytearray(self.data))
             print(f'[LOGIN START] {username}')
 
             Faker.seed(username)
