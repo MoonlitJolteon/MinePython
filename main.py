@@ -34,7 +34,10 @@ class threadedClient(threading.Thread):
         self.conn = conn
         self.addr = addr
         self.state = 0
-        self.last_time = 0
+        self.last_state = 0
+        self.logged_in = False
+        self.disconnected = False
+        self.heartbeat_started = False
         self.data_len = None
         self.packet = None
         self.packet_id = None
@@ -69,7 +72,15 @@ class threadedClient(threading.Thread):
 
     def run(self):
         while True:
+
+            if self.disconnected:
+                print(f'[CONNECTION CLOSED] {addr} disconnected.')
+                conn.close()
+                break
+
             response = self._read_packet()
+            if self.state != self.last_state:
+                print(f'[NEW STATE] {self.addr} State: {self._get_state_type()}, ID: {self.state}')
 
             if response == -1:
                 print(f'[CONNECTION CLOSED] {addr} disconnected.')
@@ -95,12 +106,17 @@ class threadedClient(threading.Thread):
                     self.conn.close()
                     print(f'[INVALID STATE] {addr} disconnected due to invalid state.')
                     break
+
             elif self._get_state_type() == "Status":
                 self._handle_status()
+
             elif self._get_state_type() == "Login":
                 self._handle_logon()
+
             elif self._get_state_type() == "Play":
                 self._handle_play()
+
+            self.last_state = self.state
 
     def _get_packet_type(self):
         return self.packet_types.get(self.state).get(self.packet_id)
@@ -124,12 +140,24 @@ class threadedClient(threading.Thread):
             return -2
 
     def _handle_keep_alive(self):
-        if time.time() > self.last_time and self.state == 3:
-            # pass
-            self.last_time = time.time()
-            print(f'[HEARTBEAT] Sending Keep Alive to {self.addr}')
-            packet_handling.send_data(self.conn, b'\x21', random.randint(0, 100000).to_bytes(4, 'little'))
-
+        if not self.heartbeat_started:
+            self.heartbeat_started = True
+            # print(f'[HEARTBEAT] Sending Keep Alive to {self.addr}')
+            msg = b"\x21" + Long(1).pack()
+            msg = VarInt(len(msg)).pack() + msg
+            self.conn.send(msg)
+        else:
+            if self.packet_type == "Keep Alive":
+                heartbeatID = Long().unpack(bytearray(self.data))
+                # heartbeatID = struct.unpack(f">q", self.data)[0] + 1
+                msg = b"\x21" + Long(heartbeatID).pack()
+                msg = VarInt(len(msg)).pack() + msg
+                # print(f'[HEARTBEAT] Sending Keep Alive to {self.addr}')
+                self.conn.send(msg)
+            else:
+                print(
+                    f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_type()}, Packet ID: {self.packet_id}, Packet Type: {self.packet_type}, Packet Data: {self.data}')
+    
     def _handle_handshake(self):
         self.state = self.data[-1]
         print(f'[NEW STATE] {self.addr} State: {self._get_state_type()}, ID: {self.state}')
@@ -146,8 +174,8 @@ class threadedClient(threading.Thread):
         if self.packet_type == "Status Request":
             demoJSON = {
                 "version": {
-                    "name": "MinePython 1.12.2",
-                    "protocol": 340
+                    "name": "MinePython 1.15.2",
+                    "protocol": 578
                 },
                 "players": {
                     "max": 20,
@@ -172,7 +200,7 @@ class threadedClient(threading.Thread):
             # print(f'[PING] {data}')
             self.conn.send(self.packet)
         else:
-            print(f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_name()}, Packet ID: {self.packet_id}, Packet '
+            print(f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_type()}, Packet ID: {self.packet_id}, Packet '
                   f'Type: {self.packet_type}, Packet Data: {self.data}')
 
     def _handle_logon(self):
@@ -202,7 +230,8 @@ class threadedClient(threading.Thread):
             msg += Boolean(False).pack() + Boolean(True).pack()
 
             msg = VarInt(len(msg)).pack() + msg
-            print(f'[JOIN PACKET] {addr} {msg}')
+
+            # print(f'[JOIN PACKET] {addr} {msg}')
 
             self.conn.send(msg)
 
@@ -217,16 +246,17 @@ class threadedClient(threading.Thread):
         ################################
 
         else:
-            print(
-                f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_name()}, Packet ID: {self.packet_id}, Packet Type: {self.packet_type}, Packet Data: {self.data}')
+            print(f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_type()}, Packet ID: {self.packet_id}, Packet Type: {self.packet_type}, Packet Data: {self.data}')
 
     def _handle_play(self):
-        if not self.joined:
-            self.conn.send(b'\x15\x23\x00\x00\x0a\x4d\x00\x00\x00\x00\x00\x01\x14\x07\x64\x65'
-                           b'\x66\x61\x75\x6c\x74\x00')
+        if not self.joined and not self.disconnected:
             self.joined = True
         else:
             self._handle_keep_alive()
+            if self.logged_in:
+                pass
+            else:
+                pass
 
 
 while True:

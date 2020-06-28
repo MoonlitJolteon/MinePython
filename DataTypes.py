@@ -17,9 +17,11 @@ class DataType:
         return struct.pack(f">{self.pattern}", self.value)
 
     def unpack(self, value):
+        print(f'Value: {value}')
         data = b""
         for i in range(self.length):
-            data += value.pop(0)
+            data += bytes(value.pop(0))
+        print(f'Data: {data}')
         self.value = struct.unpack(f">{self.pattern}", data)
         return self.value
 
