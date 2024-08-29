@@ -8,6 +8,10 @@ import packet_handling
 import json
 import threading
 from faker import Faker
+import uuid
+import io
+import sys
+
 
 fake = Faker()
 
@@ -17,6 +21,8 @@ server = ''
 port = 25565
 
 server_ip = socket.gethostbyname(server)
+
+
 
 try:
     s.bind((server, port))
@@ -30,6 +36,7 @@ s.listen(1)
 class threadedClient(threading.Thread):
     def __init__(self, conn, addr):
         threading.Thread.__init__(self)
+        self.script = ""
         self.debug = False
         self.ticks = 0
         self.conn = conn
@@ -59,6 +66,7 @@ class threadedClient(threading.Thread):
                 2: "Login Plugin Response"
             },
             3: {
+                3: "Chat",
                 4: "Client Status",
                 15: "Keep Alive"
             }
@@ -117,7 +125,9 @@ class threadedClient(threading.Thread):
             elif self._get_state_type() == "Play":
                 disconnected = self._handle_play()
                 if disconnected:
-                    thread.exit()
+                    sleep(5)
+                    self.conn.close()
+                    break
 
             self.last_state = self.state
 
@@ -157,8 +167,6 @@ class threadedClient(threading.Thread):
                 msg = VarInt(len(msg)).pack() + msg
                 # print(f'[HEARTBEAT] Sending Keep Alive to {self.addr}')
                 self.conn.send(msg)
-            else:
-                print(f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_type()}, Packet ID: {self.packet_id}, Packet Type: {self.packet_type}, Packet Data: {self.data}')
     
     def _handle_handshake(self):
         self.state = self.data[-1]
@@ -216,13 +224,13 @@ class threadedClient(threading.Thread):
             print(f'[LOGIN START] {username}')
 
             Faker.seed(username)
-            uuid = fake.uuid4()
+            uuidString = fake.uuid4()
 
-            msg = b'\x02' + String(uuid).pack() + String(username).pack()
+            msg = b'\x02' + String(uuidString).pack() + String(username).pack()
 
             msg = VarInt(len(msg)).pack() + msg
 
-            print(f'[LOGIN SUCCESSFUL] {username} - {uuid}')
+            print(f'[LOGIN SUCCESSFUL] {username} - {uuidString}')
             self.conn.send(msg)
             self.state = 3
             
@@ -247,29 +255,89 @@ class threadedClient(threading.Thread):
         else:
             print(f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_type()}, Packet ID: {self.packet_id}, Packet Type: {self.packet_type}, Packet Data: {self.data}')
 
+    def _send_chat_message_(self, message):
+        # give the result
+        chatMessage = {
+            "text": message
+        }
+        msg = b'\x0F' + Json(chatMessage).pack() + Byte(0).pack()
+        msg = VarInt(len(msg)).pack() + msg
+        self.conn.send(msg)
+    
     def _handle_play(self):
         start = timer()
-        if not self.joined and not self.disconnected:
+        Faker.seed("Time until kick")
+        uuidString = fake.uuid4()
+        if not self.joined and not self.disconnected and self.loaded_in:
             self.joined = True
+            self._send_chat_message_(f"Hello, Welcome to the WIP \u00A75MinePython\u00A7r server, currently only functions in 1.15.2")
+            
+            # Create a boss bar to count down to server kick
+            title = {
+                "text": f"\u00A75\u00A7lTime Left on MinePython",
+                "bold": "true"
+            }
+            msg = b'\x0D' + uuid.UUID(uuidString).bytes + VarInt(0).pack() + Json(title).pack() + Float(1).pack() + VarInt(5).pack() +  VarInt(4).pack() + UnsignedByte(0).pack()
+            msg = VarInt(len(msg)).pack() + msg
+            self.conn.send(msg)
         else:
             self._handle_keep_alive()
+
+            if self.packet_type == "Chat":
+                script = self.data[1:]
+                if script.startswith(b"/addline"):
+                    if len(self.script) > 0:
+                        self.script += f"\n{script[9:]}"
+                    else:
+                        self.script = f"{script[9:]}"
+                    self._send_chat_message_('Current program:\n'+self.script)
+                if script.startswith(b"/execute"):
+                    sys.stdout = io.StringIO()
+                    sys.stderr = io.StringIO()
+                    errored = False
+                    try:
+                        print(self.script)
+                        exec(self.script)
+                    except:
+                        errored = True
+                    self._send_chat_message_('Errored: \u00A7c'+sys.stderr.getvalue() if errored else sys.stdout.getvalue())
+                    sys.stdout = sys.__stdout__
+                    sys.stderr = sys.__stderr__
+            elif self.packet_type == "Keep Alive":
+                pass
+            else:
+                print(f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_type()}, Packet ID: {self.packet_id}, Packet Type: {self.packet_type}, Packet Data: {self.data}')
+
+
+
             if self.loaded_in:
                 if self.ticks % 100 == 0:
                     chatMessage = {
-                        "text": f"Hello, there have been {self.ticks} since you joined, you will be kicked at 1000 ticks"
+                        "text": f"Hello, it has been {self.ticks} ticks since you joined, you will be kicked at 1000 ticks"
                     }
-                    msg = b'\x0F' + Json(chatMessage).pack() + Boolean(False).pack()
+                    msg = b'\x0F' + Json(chatMessage).pack() + Byte(2).pack()
                     msg = VarInt(len(msg)).pack() + msg
                     self.conn.send(msg)
+
                 if self.ticks == 1000:
                     chatMessage = {
-                        "text": f"You've been connected for 1000 ticks.. disconnecting ^.^"
+                        "text": "\u00A75\u00A7lThank you for connecting to MinePython 1.15.2"
                     }
-                    msg - b'\x1B' + Json(chatMessage).pack()
+                    msg = b'\x1B' + Json(chatMessage).pack()
+                    msg = VarInt(len(msg)).pack() + msg
+                    # self.conn.send(msg)
+                    # return True
+                
+                # Update boss bar countdown
+                left = 1 - (self.ticks / 1000)
+                if left > 0:
+                    msg = b'\x0D' + uuid.UUID(uuidString).bytes + VarInt(2).pack() + Float(left).pack()
                     msg = VarInt(len(msg)).pack() + msg
                     self.conn.send(msg)
-                    self.conn.close()
-                    return True
+                elif left == 0:
+                    msg = b'\x0D' + uuid.UUID(uuidString).bytes + VarInt(1).pack()
+
+                self.ticks += 1
             else:
                 sleep(0.25)
                 print('[UPDATE PLAYER POSITION PACKET]')
