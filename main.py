@@ -287,22 +287,24 @@ class threadedClient(threading.Thread):
                 script = self.data[1:]
                 if script.startswith(b"/addline"):
                     if len(self.script) > 0:
-                        self.script += f"\n{script[9:]}"
+                        self.script += f"\n{script[9:].decode()}"
                     else:
-                        self.script = f"{script[9:]}"
+                        self.script = f"{script[9:].decode()}"
                     self._send_chat_message_('Current program:\n'+self.script)
                 if script.startswith(b"/execute"):
                     sys.stdout = io.StringIO()
                     sys.stderr = io.StringIO()
                     errored = False
                     try:
-                        print(self.script)
                         exec(self.script)
                     except:
                         errored = True
-                    self._send_chat_message_('Errored: \u00A7c'+sys.stderr.getvalue() if errored else sys.stdout.getvalue())
+                    self._send_chat_message_('Errored: \u00A7c'+sys.stderr.getvalue().strip() if errored else f"Result:\n{sys.stdout.getvalue().strip()}")
                     sys.stdout = sys.__stdout__
                     sys.stderr = sys.__stderr__
+                if script.startswith(b"/clearprog"):
+                    self.script = ""
+                    self._send_chat_message_("Cleared the program!")
             elif self.packet_type == "Keep Alive":
                 pass
             else:
