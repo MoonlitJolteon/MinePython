@@ -1,6 +1,7 @@
 import random
 import socket
-import time
+from time import sleep
+from timeit import default_timer as timer
 
 from DataTypes import *
 import packet_handling
@@ -30,12 +31,12 @@ class threadedClient(threading.Thread):
     def __init__(self, conn, addr):
         threading.Thread.__init__(self)
         self.debug = False
-
+        self.ticks = 0
         self.conn = conn
         self.addr = addr
         self.state = 0
         self.last_state = 0
-        self.logged_in = False
+        self.loaded_in = False
         self.disconnected = False
         self.heartbeat_started = False
         self.data_len = None
@@ -114,7 +115,9 @@ class threadedClient(threading.Thread):
                 self._handle_logon()
 
             elif self._get_state_type() == "Play":
-                self._handle_play()
+                disconnected = self._handle_play()
+                if disconnected:
+                    thread.exit()
 
             self.last_state = self.state
 
@@ -155,8 +158,7 @@ class threadedClient(threading.Thread):
                 # print(f'[HEARTBEAT] Sending Keep Alive to {self.addr}')
                 self.conn.send(msg)
             else:
-                print(
-                    f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_type()}, Packet ID: {self.packet_id}, Packet Type: {self.packet_type}, Packet Data: {self.data}')
+                print(f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_type()}, Packet ID: {self.packet_id}, Packet Type: {self.packet_type}, Packet Data: {self.data}')
     
     def _handle_handshake(self):
         self.state = self.data[-1]
@@ -182,13 +184,13 @@ class threadedClient(threading.Thread):
                     "online": 1,
                     "sample": [
                         {
-                            "name": "MoonlitJolty",
+                            "name": "Test Player",
                             "id": "21a3feda-3387-440d-85b7-fc08038aa307"
                         }
                     ]
                 },
                 "description": {
-                    "text": "Hello world!"
+                    "text": "\u00A75Hello world!"
                 }
             }
 
@@ -216,24 +218,21 @@ class threadedClient(threading.Thread):
             Faker.seed(username)
             uuid = fake.uuid4()
 
-            msg = b'\02' + String(uuid).pack() + String(username).pack()
+            msg = b'\x02' + String(uuid).pack() + String(username).pack()
 
             msg = VarInt(len(msg)).pack() + msg
 
             print(f'[LOGIN SUCCESSFUL] {username} - {uuid}')
-
             self.conn.send(msg)
             self.state = 3
-
-            msg = b'\x26' + Int(1).pack() + UnsignedByte(1).pack() + Int(0).pack() + Long(12345678).pack()
-            msg += UnsignedByte(0).pack() + String("default").pack() + VarInt(16).pack()
+            
+            msg = b'\x26' + Int(1).pack() + UnsignedByte(3).pack() + Int(0).pack() + Long(12345678).pack()
+            msg += UnsignedByte(20).pack() + String("flat").pack() + VarInt(16).pack()
             msg += Boolean(False).pack() + Boolean(True).pack()
-
             msg = VarInt(len(msg)).pack() + msg
-
-            # print(f'[JOIN PACKET] {addr} {msg}')
-
+            print(f'[JOIN PACKET] {addr} {msg}')
             self.conn.send(msg)
+
 
         elif self.packet_type == 'Encryption Response':
             pass
@@ -249,14 +248,41 @@ class threadedClient(threading.Thread):
             print(f'[UNKNOWN/UNHANDLED PACKET] State: {self._get_state_type()}, Packet ID: {self.packet_id}, Packet Type: {self.packet_type}, Packet Data: {self.data}')
 
     def _handle_play(self):
+        start = timer()
         if not self.joined and not self.disconnected:
             self.joined = True
         else:
             self._handle_keep_alive()
-            if self.logged_in:
-                pass
+            if self.loaded_in:
+                if self.ticks % 100 == 0:
+                    chatMessage = {
+                        "text": f"Hello, there have been {self.ticks} since you joined, you will be kicked at 1000 ticks"
+                    }
+                    msg = b'\x0F' + Json(chatMessage).pack() + Boolean(False).pack()
+                    msg = VarInt(len(msg)).pack() + msg
+                    self.conn.send(msg)
+                if self.ticks == 1000:
+                    chatMessage = {
+                        "text": f"You've been connected for 1000 ticks.. disconnecting ^.^"
+                    }
+                    msg - b'\x1B' + Json(chatMessage).pack()
+                    msg = VarInt(len(msg)).pack() + msg
+                    self.conn.send(msg)
+                    self.conn.close()
+                    return True
             else:
-                pass
+                sleep(0.25)
+                print('[UPDATE PLAYER POSITION PACKET]')
+                msg = b'\x36' + Double(0).pack() + Double(0).pack() + Double(0).pack() + Float(0).pack() + Float(0).pack() + Byte(0).pack() + VarInt(0).pack()
+                msg = VarInt(len(msg)).pack() + msg
+                self.conn.send(msg)
+                self.loaded_in = True
+        end = timer()
+        actual_time = (end - start) * 1000
+        delay = 0.02 - (actual_time/1000)
+        if (delay) > 0:
+            sleep(delay)
+        return False
 
 
 while True:
