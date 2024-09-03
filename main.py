@@ -4,14 +4,13 @@ from time import sleep
 from timeit import default_timer as timer
 
 from DataTypes import *
-import packet_handling
-import json
+import packet_handler_old
 import threading
 from faker import Faker
 import uuid
 import io
 import sys
-
+import packet_handler
 
 fake = Faker()
 
@@ -68,6 +67,7 @@ class threadedClient(threading.Thread):
             3: {
                 3: "Chat",
                 4: "Client Status",
+                12: "Edit Book",
                 15: "Keep Alive"
             }
         }
@@ -139,8 +139,8 @@ class threadedClient(threading.Thread):
 
     def _read_packet(self):
 
-        self.data_len = packet_handling.unpack_varint(self.conn)
-        self.packet_id = packet_handling.unpack_varint(self.conn)
+        self.data_len = packet_handler_old.unpack_varint(self.conn)
+        self.packet_id = packet_handler_old.unpack_varint(self.conn)
         self.packet_type = self._get_packet_type()
 
         if self.data_len >= 2:
@@ -234,7 +234,7 @@ class threadedClient(threading.Thread):
             self.conn.send(msg)
             self.state = 3
             
-            msg = b'\x26' + Int(1).pack() + UnsignedByte(3).pack() + Int(0).pack() + Long(12345678).pack()
+            msg = b'\x26' + Int(1).pack() + UnsignedByte(1).pack() + Int(0).pack() + Long(12345678).pack()
             msg += UnsignedByte(20).pack() + String("flat").pack() + VarInt(16).pack()
             msg += Boolean(False).pack() + Boolean(True).pack()
             msg = VarInt(len(msg)).pack() + msg
@@ -305,6 +305,14 @@ class threadedClient(threading.Thread):
                 if script.startswith(b"/clearprog"):
                     self.script = ""
                     self._send_chat_message_("Cleared the program!")
+                if script.startswith(b"/book"):
+                    msg = b"\x2E" + VarInt(0).pack()
+                    msg = VarInt(len(msg)).pack() + msg
+                    self.conn.send(msg)
+            elif self.packet_type == "Edit Book":
+                data = self.data
+                packet_handler.edit_book(data)
+                # print(f"[EDIT BOOK] Data: {data}, Present: {present}")
             elif self.packet_type == "Keep Alive":
                 pass
             else:
@@ -313,9 +321,9 @@ class threadedClient(threading.Thread):
 
 
             if self.loaded_in:
-                if self.ticks % 100 == 0:
+                if self.ticks % 100 == 0 and self.ticks <= 1000:
                     chatMessage = {
-                        "text": f"Hello, it has been {self.ticks} ticks since you joined, you will be kicked at 1000 ticks"
+                        "text": f"Hello, it has been {self.ticks} ticks since you joined, you will be kicked at 1000 ticks" if self.ticks < 1000 else "Just kidding!"
                     }
                     msg = b'\x0F' + Json(chatMessage).pack() + Byte(2).pack()
                     msg = VarInt(len(msg)).pack() + msg
@@ -338,6 +346,8 @@ class threadedClient(threading.Thread):
                     self.conn.send(msg)
                 elif left == 0:
                     msg = b'\x0D' + uuid.UUID(uuidString).bytes + VarInt(1).pack()
+                    msg = VarInt(len(msg)).pack() + msg
+                    self.conn.send(msg)
 
                 self.ticks += 1
             else:

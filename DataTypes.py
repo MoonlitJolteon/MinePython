@@ -1,5 +1,4 @@
 import struct
-import bitarray
 import json
 
 
@@ -12,6 +11,9 @@ class DataType:
 
     def setValue(self, value):
         self.value = value
+
+    def getValue(self):
+        return self.value
 
     def pack(self):
         return struct.pack(f">{self.pattern}", self.value)
@@ -28,9 +30,9 @@ class Boolean(DataType):
     def pack(self):
         return b"\x01" if self.value else b"\x00"
 
-    def unpack(self, value):
-        self.value = b"\x01" == value.pop(0)
-        return self.value
+    def unpack(self, input):
+        self.value = bytearray(b"\x01")[0] == input.pop(0)
+        return self.value, input
 
 
 class Byte(DataType):
@@ -100,23 +102,26 @@ class VarInt(DataType):
             raise ValueError(f"{self.value} is out of the range of a VarInt")
         return ordinal
 
-    def unpack(self, value):
+    def unpack(self, input):
         """ Unpack the varint """
+        CONTINUE_BIT = bytearray(b'\x80')
+        SEGMENT_BITS = bytearray(b'\x7F')
         data = 0
-        for i in range(5):
-            ordinal = value.pop(0)
-
-            # if len(ordinal) == 0:
-            #     break
-
+        position = 0
+        while True:
+            ordinal = input.pop(0)
             byte = ordinal
-            data |= (byte & 0x7F) << 7 * i
-
-            if not byte & 0x80:
+            if (byte & CONTINUE_BIT[0]) == 0:
                 break
 
+            data |= (byte & SEGMENT_BITS[0]) << position
+            position += 7
+
+            if (position >= 32):
+                raise Exception("VarInt too long!")
+
         self.value = data
-        return data
+        return data, input
 
 
 class VarLong(DataType):
@@ -160,7 +165,7 @@ class String(DataType):
         return VarInt(len(byte)).pack() + byte
 
     def unpack(self, value):
-        leng = VarInt().unpack(value)
+        leng, bytearray = VarInt().unpack(value)
         nex = b""
         for i in range(leng):
             nex += bytes([value.pop()])
